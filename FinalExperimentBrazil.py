@@ -1,4 +1,5 @@
 import pandas as pd
+import time
 from GeneticAlgorithm import GeneticAlgorithm
 from ReadXml import read_xml
 from tqdm import tqdm
@@ -9,12 +10,12 @@ xml_file_path = '/Users/devarshigoswami/Desktop/brazil58.xml'
 distance_matrix = read_xml(xml_file_path)
 print(distance_matrix)
 print(distance_matrix.shape)
-input_string = [i for i in range(58)]
+input_string = [i for i in range(distance_matrix.shape[0])]
 
 
 def run_experiment(input_string,n,tournament_size,iterations,distance_matrix,mutation_point,crossover_type,mutation):
     #create a log file for each experiment
-    log_file = open(f"genetic_algorithm_log.txt_{n}_{iterations}_{tournament_size}.txt", "w")
+    log_file = open(f"logs_brazil/genetic_algorithm_log.txt_{n}_{iterations}_{tournament_size}.txt", "w")
     ga = GeneticAlgorithm(input_string, n, tournament_size, distance_matrix,mutation_point,crossover_type)
     print('candidates', ga.candidates.sort_values('Cost'))
     counter=0
@@ -24,9 +25,11 @@ def run_experiment(input_string,n,tournament_size,iterations,distance_matrix,mut
     experiment_results = pd.DataFrame(columns=['Iteration', 'MinCost'])
     try:
         for i in tqdm(range(iterations)):
+            start_time=time.time()
+
             # select individuals=tournament size , then get the min cost
-            selected_permutations_1 = ga.tournament_selection()
-            selected_permutations_2 = ga.tournament_selection()
+            selected_permutations_1 = ga.tournament_selection(tournament_size)
+            selected_permutations_2 = ga.tournament_selection(tournament_size)
 
             log_file.write(f"selected permuations for iteration {i} {selected_permutations_1}\n")
             log_file.write(f"selected permuations for iteration {i} {selected_permutations_2}\n")
@@ -57,6 +60,7 @@ def run_experiment(input_string,n,tournament_size,iterations,distance_matrix,mut
             iteration_list.append(i)
             min_cost_list.append(min_cost)
             log_file.flush()  # Flush the buffer to ensure immediate write
+            end_time=time.time()
     except Exception as e:
         print(f"An error occurred: {str(e)}")
 
@@ -64,7 +68,7 @@ def run_experiment(input_string,n,tournament_size,iterations,distance_matrix,mut
     experiment_results = pd.DataFrame({'Iteration': iteration_list, 'MinCost': min_cost_list})
 
     print('minimum of experiment',min(ga.candidates.Cost.to_list()))
-    experiment_results.to_csv(f'experiment_results_pop_size_{n}_tournament_size_{tournament_size}_iterations_{iterations}_crossover_type_{crossover_type}.csv', index=False)
+    experiment_results.to_csv(f'output_csv_brazil/experiment_results_pop_size_{n}_tournament_size_{tournament_size}_iterations_{iterations}_crossover_type_{crossover_type}_time_taken{start_time-end_time}.csv', index=False)
     print(counter)
 
 
@@ -79,7 +83,7 @@ from itertools import product
 n_values = [50, 100, 1000, 5000, 10000]
 tournament_size_values = [2, 10, 20, 100, 1000]
 iterations_values = [10000, 20000, 30000]
-mutation_point_values = [1, 3, 5, 7]
+mutation_point_values = [1, 2, 5, 7]
 crossover_type_values = ['fix', 'ordered']
 mutation_true_values= [True,False]
 # Generate all possible parameter combinations
