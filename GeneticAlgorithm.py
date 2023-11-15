@@ -3,8 +3,10 @@ import numpy as np
 import pandas as pd
 
 class GeneticAlgorithm:
-    def __init__(self, input_vector, n, tournament_size, distance_matrix, mutation_point, crossover_type='fix'):
+    def __init__(self, input_vector, n, tournament_size, distance_matrix, mutation_point, crossover_type, mutation_type):
+        # Initialize the genetic algorithm with parameters
         self.mutation_point = mutation_point
+        self.mutation_type = mutation_type
         self.input_vector = input_vector
         self.n = n
         self.tournament_size = tournament_size
@@ -14,6 +16,7 @@ class GeneticAlgorithm:
         self.candidates = self.generate_permutations()
 
     def calculate_total_cost(self, input_vector):
+        # Calculate the total cost of a given input vector
         total_cost = 0
         for i in range(self.locations - 1):
             source = input_vector[i]
@@ -24,6 +27,7 @@ class GeneticAlgorithm:
         return total_cost
 
     def generate_permutations(self):
+        # Generate a population of candidate solutions
         unique_items = list(range(self.locations))
         permutations = []
         while len(permutations) < self.n:
@@ -36,13 +40,13 @@ class GeneticAlgorithm:
         return candidates
 
     def tournament_selection(self, tournament_size):
+        # Perform tournament selection to choose the best candidate
         selected_indices = random.sample(range(len(self.candidates)), tournament_size)
-        selected_candidates = self.candidates.loc[selected_indices].sort_values('Cost',ascending=True).reset_index(drop=True)
-        # Sort the selected candidates based on their already calculated cost
-
+        selected_candidates = self.candidates.loc[selected_indices].sort_values('Cost', ascending=True).reset_index(drop=True)
         return selected_candidates['Candidate_Solution'][0]
 
     def repair_offspring(self, offspring, candidate):
+        # Repair duplicated genes in offspring by replacing them with unused genes from the candidate
         seen = set()
         repaired_offspring = []
 
@@ -59,11 +63,13 @@ class GeneticAlgorithm:
         return repaired_offspring
 
     def single_point_swap_mutation(self, offspring):
+        # Perform single-point swap mutation on the offspring
         mutation_point1, mutation_point2 = random.sample(range(len(offspring)), 2)
         offspring[mutation_point1], offspring[mutation_point2] = offspring[mutation_point2], offspring[mutation_point1]
         return offspring
 
     def single_point_crossover(self, candidate1, candidate2):
+        # Perform single-point crossover between two candidates
         crossover_point = random.randint(1, len(candidate1) - 1)
         offspring1 = candidate1[:crossover_point] + candidate2[crossover_point:]
         offspring2 = candidate2[:crossover_point] + candidate1[crossover_point:]
@@ -72,22 +78,14 @@ class GeneticAlgorithm:
         return offspring1, offspring2
 
     def ordered_crossover(self, parent1, parent2):
-        # Randomly select two crossover points (indices)
+        # Perform ordered crossover between two parents
         crossover_points = sorted(random.sample(range(len(parent1)), 2))
-
-        # Create empty offspring with the same length as the parents
         offspring1 = [None] * len(parent1)
         offspring2 = [None] * len(parent1)
-
-        # Copy a segment from the first parent to the offspring
         offspring1[crossover_points[0]:crossover_points[1] + 1] = parent1[crossover_points[0]:crossover_points[1] + 1]
         offspring2[crossover_points[0]:crossover_points[1] + 1] = parent2[crossover_points[0]:crossover_points[1] + 1]
-
-        # Create lists of elements remaining in parent2 (excluding the copied segment)
         remaining_elements1 = [gene for gene in parent2 if gene not in offspring1]
         remaining_elements2 = [gene for gene in parent1 if gene not in offspring2]
-
-        # Iterate through the offspring and fill in the remaining elements from parent2 and parent1
         offspring_index1 = crossover_points[1] + 1
         offspring_index2 = crossover_points[1] + 1
 
@@ -101,8 +99,15 @@ class GeneticAlgorithm:
 
         return offspring1, offspring2
 
+    def inverse_mutation(self, offspring):
+        # Perform inverse mutation on the offspring
+        mutation_point1, mutation_point2 = sorted(random.sample(range(len(offspring)), 2))
+        reversed_segment = offspring[mutation_point1:mutation_point2 + 1][::-1]
+        offspring[mutation_point1:mutation_point2 + 1] = reversed_segment
+        return offspring
 
     def perform_crossover(self, candidate1, candidate2):
+        # Perform crossover based on the specified type
         if self.crossover_type == 'fix':
             return self.single_point_crossover(candidate1, candidate2)
         elif self.crossover_type == 'ordered':
@@ -110,12 +115,25 @@ class GeneticAlgorithm:
         else:
             raise ValueError("Invalid crossover type")
 
+    def perform_mutation(self, offspring, mutation_type='single'):
+        # Perform mutation based on the specified type
+        if mutation_type == 'single':
+            return self.single_point_swap_mutation(offspring)
+        elif mutation_type == 'inversion':
+            return self.inverse_mutation(offspring)
+        elif mutation_type == 'multi':
+            return self.multi_point_swap_mutation(offspring, self.mutation_point)
+        else:
+            raise ValueError("Invalid mutation type")
+
     def replace_highest_cost_solution(self, x):
+        # Replace the highest-cost solution with a new solution
         highest_cost_index = self.candidates['Cost'].idxmax()
         self.candidates.at[highest_cost_index, 'Candidate_Solution'] = x
         self.candidates.at[highest_cost_index, 'Cost'] = self.calculate_total_cost(x)
 
     def multi_point_swap_mutation(self, offspring, n):
+        # Perform multi-point swap mutation on the offspring
         mutation_points = random.sample(range(self.locations), n)
         for i in range(0, n, 2):
             if i + 1 < n:
